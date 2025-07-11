@@ -7,7 +7,7 @@
 #include <netinet/in.h> 
 #include <arpa/inet.h>  
 
-main(){
+int main(){
 
     // Building the main socket
     int server_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -67,10 +67,72 @@ main(){
             close(client_socket);
         }
 
-
     }
 
-
-
     return 0;
+}
+
+// passing an in because file descriptors, unix jargon
+void handle_client(int client_socket) {
+    // Buffer to receive HTTP request
+    char buffer[4096];
+    recv(client_socket, buffer, sizeof(buffer), 0);  // Read request from socket
+    printf("Request:\n%s\n", buffer);
+
+    // Variables to hold method (e.g., GET) and path (e.g., /index.html)
+    char method[8], path[1024];
+    sscanf(buffer, "%s %s", method, path);  // Parse method and path from the request line
+
+    // Only support GET requests
+    if (strcmp(method, "GET") != 0) {
+        send(client_socket, "HTTP/1.1 405 Method Not Allowed\r\n\r\n", 36, 0);
+        return;
+    }
+
+    // Map "/" to "index.html", otherwise prepend "." to path
+    char filepath[1024];
+    if (strcmp(path, "/") == 0)
+        strcpy(filepath, "index.html");
+    else
+        snprintf(filepath, sizeof(filepath), ".%s", path);  // e.g., "/about.html" → "./about.html"
+
+    // Open the requested file
+    FILE *fp = fopen(filepath, "r");
+    if (!fp) {
+        // If file not found, return 404 Not Found
+        char *not_found = "<h1>404 Not Found</h1>";
+        char response[1024];
+        sprintf(response,
+                "HTTP/1.1 404 Not Found\r\n"
+                "Content-Type: text/html\r\n"
+                "Content-Length: %ld\r\n\r\n%s",
+                strlen(not_found), not_found);
+        send(client_socket, response, strlen(response), 0);
+        return;
+    }
+
+    // Get file size
+    fseek(fp, 0, SEEK_END);
+    long filesize = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+
+    // Allocate memory and read file into memory
+    char *filedata = malloc(filesize + 1);
+    fread(filedata, 1, filesize, fp);
+    filedata[filesize] = '\0';  // Null-terminate the string
+    fclose(fp);
+
+    // Create and send HTTP response headers
+    char header[1024];
+    sprintf(header,
+            "HTTP/1.1 200 OK\r\n"
+            "Content-Type: text/html\r\n"
+            "Content-Length: %ld\r\n\r\n", filesize);
+    send(client_socket, header, strlen(header), 0);
+
+    // Send the file content as the response body
+    send(client_socket, filedata, filesize, 0);
+
+    // Free allocated memory
+    free(filedata);
 }

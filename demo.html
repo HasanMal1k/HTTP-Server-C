@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>White & Black 3D Showcase</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #fff;
+        }
+    </style>
+</head>
+<body class="bg-white">
+    <!-- Header -->
+    <div class="absolute top-0 left-0 right-0 z-10 p-6">
+        <div class="flex justify-between items-center">
+            <h1 class="text-black text-3xl font-bold">WHITE & BLACK</h1>
+            <a href="index.html" class="text-black hover:text-gray-700 transition-colors duration-300 border border-black px-4 py-2 rounded">
+                Switch Theme
+            </a>
+        </div>
+    </div>
+
+    <!-- 3D Canvas Container -->
+    <div id="canvas-container" class="w-full h-screen"></div>
+
+    <!-- Info Panel -->
+    <div class="absolute bottom-6 left-6 z-10 text-black">
+        <div class="bg-white bg-opacity-50 backdrop-blur-sm p-4 rounded-lg border border-black border-opacity-20 shadow-lg">
+            <h3 class="text-lg font-semibold mb-2">3D Interactive Scene</h3>
+            <p class="text-sm text-gray-700">Move your mouse to interact with the floating geometries</p>
+        </div>
+    </div>
+
+    <script>
+        // Scene setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0xffffff);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0x404040, 0.8);
+        directionalLight.position.set(10, 10, 5);
+        directionalLight.castShadow = true;
+        scene.add(directionalLight);
+
+        // Materials
+        const blackMaterial = new THREE.MeshPhongMaterial({ color: 0x000000 });
+        const darkGrayMaterial = new THREE.MeshPhongMaterial({ color: 0x333333 });
+
+        // Create geometries
+        const geometries = [];
+        
+        // Rotating cubes
+        for (let i = 0; i < 8; i++) {
+            const geometry = new THREE.BoxGeometry(1, 1, 1);
+            const mesh = new THREE.Mesh(geometry, i % 2 === 0 ? blackMaterial : darkGrayMaterial);
+            
+            const angle = (i / 8) * Math.PI * 2;
+            mesh.position.x = Math.cos(angle) * 5;
+            mesh.position.z = Math.sin(angle) * 5;
+            mesh.position.y = Math.sin(i * 0.5) * 2;
+            
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            scene.add(mesh);
+            geometries.push(mesh);
+        }
+
+        // Floating spheres
+        const spheres = [];
+        for (let i = 0; i < 5; i++) {
+            const geometry = new THREE.SphereGeometry(0.5, 32, 32);
+            const mesh = new THREE.Mesh(geometry, blackMaterial);
+            
+            mesh.position.x = (Math.random() - 0.5) * 10;
+            mesh.position.y = (Math.random() - 0.5) * 10;
+            mesh.position.z = (Math.random() - 0.5) * 10;
+            
+            mesh.castShadow = true;
+            scene.add(mesh);
+            spheres.push(mesh);
+        }
+
+        // Central rotating torus
+        const torusGeometry = new THREE.TorusGeometry(2, 0.5, 16, 100);
+        const torus = new THREE.Mesh(torusGeometry, darkGrayMaterial);
+        torus.position.y = 2;
+        torus.castShadow = true;
+        scene.add(torus);
+
+        // Add wireframe geometries for extra visual interest
+        const wireframes = [];
+        for (let i = 0; i < 3; i++) {
+            const wireframeGeometry = new THREE.IcosahedronGeometry(1.5, 0);
+            const wireframeMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0x000000, 
+                wireframe: true,
+                transparent: true,
+                opacity: 0.3
+            });
+            const wireframe = new THREE.Mesh(wireframeGeometry, wireframeMaterial);
+            
+            wireframe.position.x = (Math.random() - 0.5) * 8;
+            wireframe.position.y = (Math.random() - 0.5) * 8;
+            wireframe.position.z = (Math.random() - 0.5) * 8;
+            
+            scene.add(wireframe);
+            wireframes.push(wireframe);
+        }
+
+        // Camera position
+        camera.position.z = 12;
+        camera.position.y = 3;
+
+        // Mouse interaction
+        const mouse = new THREE.Vector2();
+        let mouseX = 0;
+        let mouseY = 0;
+
+        document.addEventListener('mousemove', (event) => {
+            mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+            mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+        });
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const time = Date.now() * 0.001;
+
+            // Rotate cubes
+            geometries.forEach((mesh, index) => {
+                mesh.rotation.x = time * 0.5 + index * 0.1;
+                mesh.rotation.y = time * 0.3 + index * 0.2;
+                mesh.position.y = Math.sin(time + index * 0.5) * 2;
+            });
+
+            // Animate spheres
+            spheres.forEach((sphere, index) => {
+                sphere.position.y += Math.sin(time + index * 2) * 0.02;
+                sphere.rotation.x += 0.01;
+                sphere.rotation.z += 0.02;
+            });
+
+            // Rotate torus
+            torus.rotation.x = time * 0.4;
+            torus.rotation.y = time * 0.6;
+
+            // Animate wireframes
+            wireframes.forEach((wireframe, index) => {
+                wireframe.rotation.x = time * 0.2 + index * 0.3;
+                wireframe.rotation.y = time * 0.15 + index * 0.4;
+                wireframe.rotation.z = time * 0.1 + index * 0.2;
+            });
+
+            // Camera movement based on mouse
+            camera.position.x += (mouseX * 5 - camera.position.x) * 0.05;
+            camera.position.y += (mouseY * 5 - camera.position.y) * 0.05;
+            camera.lookAt(scene.position);
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Start animation
+        animate();
+    </script>
+</body>
+</html>
