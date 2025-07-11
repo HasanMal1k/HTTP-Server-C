@@ -90,6 +90,7 @@ void handle_client(int client_socket) {
     }
 
     // Map "/" to "index.html", otherwise prepend "." to path
+    // We're basically checking what file to send here, default is index.html
     char filepath[1024];
     if (strcmp(path, "/") == 0)
         strcpy(filepath, "index.html");
@@ -111,6 +112,8 @@ void handle_client(int client_socket) {
         return;
     }
 
+    // Actual process when file is available
+
     // Get file size
     fseek(fp, 0, SEEK_END);
     long filesize = ftell(fp);
@@ -130,7 +133,7 @@ void handle_client(int client_socket) {
             "Content-Length: %ld\r\n\r\n", filesize);
     send(client_socket, header, strlen(header), 0);
 
-    // Send the file content as the response body
+    // Send the file content as the response body to the browser where it can be rendered
     send(client_socket, filedata, filesize, 0);
 
     // Free allocated memory
